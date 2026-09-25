@@ -27,12 +27,24 @@ while True:
     if fields == ["SS", "RFMP", "v1.0", "0"]:
         client_socket.sendall("CC\n".encode("utf-8"))
         print("Unsecured connection confirmed")
+        
+        
+        # Keeping client connected until "End"
+        for next_packet in client_reader:
+            next_packet = next_packet.strip()
+            
+            if next_packet == "End":
+                print("Client has ended the session")
+                break
+                
+            client_socket.sendall("EE,2,Unknown packet\n".encode("utf-8"))
+                
+        print("Client has been disconnected")
     else:
         client_socket.sendall("EE,4,Invalid setup packet\n".encode("utf-8"))
         print("Invalid setup packet:", message)
         
     client_reader.close()
     client_socket.close()
-    
 
 
