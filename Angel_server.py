@@ -15,9 +15,24 @@ print("RFMP server is listening on port", port)
 while True:
     client_socket, address = server_socket.accept()
     print("Client is connected:", address)
+
+
+    # Start-Packet (client to server) (Set-up phase)
+    client_reader = client_socket.makefile("r", encoding="utf-8")
+    message = client_reader.readline().strip()
+    print("Client sent: ", message)
     
+    fields = message.split(",")
+    
+    if fields == ["SS", "RFMP", "v1.0", "0"]:
+        client_socket.sendall("CC\n".encode("utf-8"))
+        print("Unsecured connection confirmed")
+    else:
+        client_socket.sendall("EE,4,Invalid setup packet\n".encode("utf-8"))
+        print("Invalid setup packet:", message)
+        
+    client_reader.close()
     client_socket.close()
+    
 
-
-# 
 
