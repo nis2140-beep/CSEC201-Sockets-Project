@@ -1,5 +1,13 @@
 import socket # Provides TCP socket functions 
 
+# Sends 1 RFMP packet followed by a newline
+def send_packet(sock, packet):
+    sock.sendall((packet + "\n").encode("utf-8"))
+
+# Receives one complete RFMP packet from the server 
+def receieve_packet(reader):
+    return reader.readline().strip()
+
 HOST = "127.0.0.1" # Server address used for same machine testing
 PORT = 8888 # Must match the server port
 
@@ -12,11 +20,10 @@ client_socket.connect((HOST, PORT))
 # Confirms that the TCP connection is established
 print("Connected to RFMP server.")
 
-# Create an unsecured RFMP Start packet
-start_packet = "SS,RFMP,v1.0,0\n"
+# Create & send the unsecured RFMP Start packet to the server
+start_packet = "SS,RFMP,v1.0,0"
+send_packet(client_socket, start_packet)
 
-# Send the Start packet to the server as UTF-8 encoded bytes
-client_socket.sendall(start_packet.encode("utf-8"))
 
 # Show the packet without printing newline character
 print("Sent Start packet:", start_packet.strip())
@@ -25,7 +32,7 @@ print("Sent Start packet:", start_packet.strip())
 client_reader = client_socket.makefile("r", encoding="utf-8")
 
 # Read the server's Confirm-Connection packet
-response = client_reader.readline().strip()
+response = receieve_packet(client_reader)
 
 # Display server's response
 print("Received from server:", response)
@@ -35,13 +42,10 @@ if response == "CC":
     print("Unsecured RFMP connection established successfully.")
     
     # Create the RFMP closing packet
-    end_packet = "End\n"
-
-    # Send closing packet to tell server session is finished
-    client_socket.sendall(end_packet.encode("utf-8"))
+    end_packet = "End"
+    send_packet(client_socket, end_packet)  
     
-    # Show closing packet without printing newline character
-    print("Sent closing packet:", end_packet.strip())
+    print("Sent closing packet:", end_packet)
 
 else:
     print("Failed to establish unsecured RFMP connection:", response)
