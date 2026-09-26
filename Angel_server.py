@@ -1,3 +1,4 @@
+import binascii
 import socket
 import base64
 
@@ -53,6 +54,27 @@ while True:
                     client_socket.sendall(b"EE,1,File not found\n")
                 except OSError:
                     client_socket.sendall(b"EE,3,File could not be read\n")
+
+            elif next_packet.startswith("CM,openWrite,"):
+                file_name = next_packet.split(",", 2)[2]
+                print("The file to write:", file_name)
+                
+                data_packet = client_reader.readline().strip()
+                if not data_packet.startswith("DP,"):
+                    client_socket.sendall(b"EE,2,Expected data packet\n")
+                    continue
+                try:
+                    file_content = base64.b64decode(data_packet[3:], validate=True)
+                    
+                    with open(file_name, "wb") as output_file:
+                        output_file.write(file_content)
+                        
+                except (binascii.Error, ValueError):
+                    client_socket.sendall(b"EE,2,Data packet is invalid\n")
+                except OSError:
+                    client_socket.sendall(b"EE,3,The file could not be written\n")
+                else:
+                    client_socket.sendall(b"SC,Write is complete\n")
             else:
                 client_socket.sendall("EE,2,Unknown packet\n".encode("utf-8"))
                 
