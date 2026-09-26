@@ -1,4 +1,5 @@
 import socket
+import base64
 
 # Creating the listening socket
 host = "127.0.0.1"
@@ -37,7 +38,23 @@ while True:
                 print("Client has ended the session")
                 break
                 
-            client_socket.sendall("EE,2,Unknown packet\n".encode("utf-8"))
+            if next_packet.startswith("CM,openRead,"):
+                file_name = next_packet.split(",",2)[2]
+                print("File requested:", file_name)
+                try:
+                    with open(file_name, "rb") as file:
+                        file_content = file.read()
+                
+                    encoded_file_content = base64.b64encode(file_content).decode("ascii")
+                    client_socket.sendall(("DP," + encoded_file_content + "\n").encode("utf-8"))
+                    client_socket.sendall(b"SC,Read complete\n")
+                
+                except FileNotFoundError:
+                    client_socket.sendall(b"EE,1,File not found\n")
+                except OSError:
+                    client_socket.sendall(b"EE,3,File could not be read\n")
+            else:
+                client_socket.sendall("EE,2,Unknown packet\n".encode("utf-8"))
                 
         print("Client has been disconnected")
     else:
