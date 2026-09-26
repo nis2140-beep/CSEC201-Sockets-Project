@@ -33,11 +33,24 @@ print("Received from server:", response)
 # Check whether the server has confirmed the connection 
 if response == "CC":
     print("Unsecured RFMP connection established successfully.")
+    
+    # Create the RFMP closing packet
+    end_packet = "End\n"
+
+    # Send closing packet to tell server session is finished
+    client_socket.sendall(end_packet.encode("utf-8"))
+    
+    # Show closing packet without printing newline character
+    print("Sent closing packet:", end_packet.strip())
+
 else:
     print("Failed to establish unsecured RFMP connection:", response)
-    
+
 # Close the reader
 client_reader.close()
 
-# Close the client socket
+# Close the client socket to terminate the TCP connection
 client_socket.close()
+
+# Confirm that client session has ended
+print("Connection to RFMP server closed. Client session ended.")
