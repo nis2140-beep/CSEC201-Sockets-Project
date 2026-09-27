@@ -96,7 +96,41 @@ def open_write(sock, reader):
     # Catch any unexpected responses from the server
     else:
         print("Unexpected response from server:", response)
+
+def prompt_command(sock,reader):
+        # Show the required and additional supported system commands
+        print("\nAvailable prompt commands:")
+        print("Required: mkdir, cd, rmdir/rd, del, ren")
+        print("Additional: dir, type, copy, move, echo")
+            
+        # Ask the user to enter the complete command 
+        command = input("Enter the full system command to send to the server: ").strip()
         
+        # Prevent an empty command from being sent to the server
+        if command == "":
+                print("Command cannot be empty.")
+                return
+            
+        # Create the RFMP prompt command packet
+        prompt_packet = "CM,prompt," + command
+            
+        # Send the prompt command to the server
+        send_packet(sock, prompt_packet)
+            
+        #Show the packet that was sent
+        print("Sent:", prompt_packet)
+        
+        # Receive the server's response to the prompt command
+        response = receieve_packet(reader)
+            
+        # Check whether the server successfully executed the command
+        if response.startswith("SC,"):
+                print("Server status:", response)
+                
+        # Check whether server returned error 
+        elif response.startswith("EE,"):
+                print("Error received from server:", response)
+
 HOST = "127.0.0.1" # Server address used for same machine testing
 PORT = 8888 # Must match the server port
 
@@ -132,32 +166,37 @@ if response == "CC":
     
     # Keep showing the menu until the user chooses to end the session 
     while True:
-        # Display the menu options
+        # Show the menu of available RFMP commands
         print("\nRFMP Client Menu:")
-        print("1. openRead - Read a file from the server")
-        print("2. openWrite - Write a file to the server")
-        print("3. End session - Close the connection and exit")
+        print("1. Prompt Command - Run a system command on the server")
+        print("2. Open Read - Read a file from the server")
+        print("3. Open Write - Write a file to the server")
+        print("4. Exit - End the client session") 
         
-        # Ask the user to choose an operation 
-        choice = input("Enter your choice (1, 2, or 3): ")
+        # Ask the user to select a menu option
+        choice = input("Enter your choice (1, 2, 3, or 4): ")
         
-        # Read a file from the server 
+        # Run a system command on the server
         if choice == "1":
+            prompt_command(client_socket, client_reader)
+        
+        # Read a file from the server
+        elif choice == "2":
             open_read(client_socket, client_reader)
         
-        # Write data to a file on the server
-        elif choice == "2":
-            open_write(client_socket, client_reader)
-        
-        # End the RFMP session 
+        # Write a file to the server
         elif choice == "3":
+            open_write(client_socket, client_reader)
+            
+        # End the RFMP server session and close the client
+        elif choice == "4":
             end_packet = "End"
             send_packet(client_socket, end_packet)
-            print("Sent closing packet:", end_packet)
+            print("Sent close session packet:", end_packet)
             break
         
         else:
-            print("Invalid choice. Please enter 1, 2, or 3.")
+            print("Invalid choice. Please select a valid option.")  
             
 else:
     print("Failed to establish unsecured RFMP connection:", response)
