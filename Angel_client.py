@@ -52,6 +52,50 @@ def open_read(sock,reader):
     # Catch any unexpected responses from the server
     else:
         print("Unexpected response from server:", response)
+
+# Sends file data to the RFMP server so it can be written to a file
+def open_write(sock, reader):
+    # Ask the user for the name of the file to create/overwrite on the server 
+    file_name = input("Enter the name of the file to create/overwrite on the server: ")
+    
+    # Ask the user for the text that should be written into the file
+    file_content = input("Enter the text to write into the file: ")
+    
+    # Create the RFMP openWrite command packet
+    write_packet = "CM,openWrite," + file_name 
+    
+    # Send the openWrite command to the server
+    send_packet(sock, write_packet)
+    
+    # Show that the command was sent
+    print("Sent:", write_packet)
+    
+    # Convert the file text into bytes and encode it using Base64
+    encoded_content = base64.b64encode(file_content.encode("utf-8")).decode("ascii")
+    
+    # Create the RFMP Data Packet containing the encoded file contents
+    data_packet = "DP," + encoded_content
+    
+    # Send Data Packet to the server
+    send_packet(sock, data_packet)
+    
+    # Confirm that the file data was sent 
+    print("Sent file data to server.")
+    
+    # Receive the server's final response
+    response = receieve_packet(reader)
+    
+    # Check whether the server successfully wrote the file data
+    if response.startswith("SC,"):
+        print("Server status:", response)
+    
+    # Check whether the server returned an error packet
+    elif response.startswith("EE,"):
+        print("Error received from server:", response)
+        
+    # Catch any unexpected responses from the server
+    else:
+        print("Unexpected response from server:", response)
         
 HOST = "127.0.0.1" # Server address used for same machine testing
 PORT = 8888 # Must match the server port
@@ -86,8 +130,8 @@ print("Received from server:", response)
 if response == "CC":
     print("Unsecured RFMP connection established successfully.")
     
-    # Request & read a file from the server
-    open_read(client_socket, client_reader)
+    # Write data to a file on the server
+    open_write(client_socket, client_reader)
     
     # Create the RFMP closing packet
     end_packet = "End"
