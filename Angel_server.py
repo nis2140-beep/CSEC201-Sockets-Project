@@ -92,6 +92,17 @@ while True:
                         client_socket.sendall(b"SC,Folder has been created\n")
                     except OSError:
                         client_socket.sendall(b"EE,3,Could not create folder\n")
+                        
+                elif prompt_command.startswith("cd "):
+                    folder_name = prompt_command[3:].strip()
+                    new_dir = os.path.abspath(os.path.join(current_dir, folder_name))
+                    
+                    if os.path.isdir(new_dir):
+                        current_dir = new_dir
+                        client_socket.sendall(b"SC,Current folder has been changed\n")
+                    else:
+                        client_socket.sendall(b"EE,1,Folder was not found\n")
+                        
                 else:
                     client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
