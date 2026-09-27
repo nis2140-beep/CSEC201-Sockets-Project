@@ -1,4 +1,5 @@
 import socket # Provides TCP socket functions 
+import base64 # Used to decode file data received from the server
 
 # Sends 1 RFMP packet followed by a newline
 def send_packet(sock, packet):
@@ -8,6 +9,50 @@ def send_packet(sock, packet):
 def receieve_packet(reader):
     return reader.readline().strip()
 
+# Requests a file from the RFMP server & displays its contents
+def open_read(sock,reader):
+    # Ask the user which server file they want to read
+    file_name = input("Enter the name of the file to read from the server: ")
+    
+    # Create the RFMP openRead command packet
+    read_packet = "CM,openRead," + file_name
+    
+    # Send the openRead request to the server
+    send_packet(sock, read_packet)
+    
+    # Show the command that was sent 
+    print("Sent:", read_packet)
+    
+    # Receive the server's first response
+    response = receieve_packet(reader)
+    
+    # Check if the server returned file data 
+    if response.startswith("DP,"):
+        # Remove the DP, packet header
+        encoded_content = response[3:]
+        
+        # Decode the Base64-encoded file content
+        file_content = base64.b64decode(encoded_content).decode("utf-8")
+        
+        # Display the file contents
+        print("\nFile contents received from server:")
+        print(file_content)
+        
+        # Receive the final success packet
+        status = receieve_packet(reader)
+        
+        # Display the server status
+        print("Server status:", status)
+    
+    # Check if server returned an error packet
+    elif response.startswith("EE,"):
+        # Display the error message from the server
+        print("Error received from server:", response)
+    
+    # Catch any unexpected responses from the server
+    else:
+        print("Unexpected response from server:", response)
+        
 HOST = "127.0.0.1" # Server address used for same machine testing
 PORT = 8888 # Must match the server port
 
@@ -40,6 +85,9 @@ print("Received from server:", response)
 # Check whether the server has confirmed the connection 
 if response == "CC":
     print("Unsecured RFMP connection established successfully.")
+    
+    # Request & read a file from the server
+    open_read(client_socket, client_reader)
     
     # Create the RFMP closing packet
     end_packet = "End"
