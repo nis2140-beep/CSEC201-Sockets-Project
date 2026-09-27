@@ -130,15 +130,35 @@ print("Received from server:", response)
 if response == "CC":
     print("Unsecured RFMP connection established successfully.")
     
-    # Write data to a file on the server
-    open_write(client_socket, client_reader)
-    
-    # Create the RFMP closing packet
-    end_packet = "End"
-    send_packet(client_socket, end_packet)  
-    
-    print("Sent closing packet:", end_packet)
-
+    # Keep showing the menu until the user chooses to end the session 
+    while True:
+        # Display the menu options
+        print("\nRFMP Client Menu:")
+        print("1. openRead - Read a file from the server")
+        print("2. openWrite - Write a file to the server")
+        print("3. End session - Close the connection and exit")
+        
+        # Ask the user to choose an operation 
+        choice = input("Enter your choice (1, 2, or 3): ")
+        
+        # Read a file from the server 
+        if choice == "1":
+            open_read(client_socket, client_reader)
+        
+        # Write data to a file on the server
+        elif choice == "2":
+            open_write(client_socket, client_reader)
+        
+        # End the RFMP session 
+        elif choice == "3":
+            end_packet = "End"
+            send_packet(client_socket, end_packet)
+            print("Sent closing packet:", end_packet)
+            break
+        
+        else:
+            print("Invalid choice. Please enter 1, 2, or 3.")
+            
 else:
     print("Failed to establish unsecured RFMP connection:", response)
 
