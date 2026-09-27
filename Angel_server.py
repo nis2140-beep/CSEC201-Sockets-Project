@@ -1,6 +1,7 @@
-import binascii
 import socket
 import base64
+import binascii
+import os
 
 # Creating the listening socket
 host = "127.0.0.1"
@@ -30,6 +31,10 @@ while True:
         client_socket.sendall("CC\n".encode("utf-8"))
         print("Unsecured connection confirmed")
         
+        # Setting the client's starting folder
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        print("Starting folder:", current_dir)
+        
         
         # Keeping client connected until "End"
         for next_packet in client_reader:
@@ -43,13 +48,13 @@ while True:
                 file_name = next_packet.split(",",2)[2]
                 print("File requested:", file_name)
                 try:
-                    with open(file_name, "rb") as file:
+                    with open(os.path.join(current_dir, file_name), "rb") as file:
                         file_content = file.read()
-                
+
                     encoded_file_content = base64.b64encode(file_content).decode("ascii")
                     client_socket.sendall(("DP," + encoded_file_content + "\n").encode("utf-8"))
                     client_socket.sendall(b"SC,Read complete\n")
-                
+
                 except FileNotFoundError:
                     client_socket.sendall(b"EE,1,File not found\n")
                 except OSError:
@@ -66,7 +71,7 @@ while True:
                 try:
                     file_content = base64.b64decode(data_packet[3:], validate=True)
                     
-                    with open(file_name, "wb") as output_file:
+                    with open(os.path.join(current_dir, file_name), "wb") as output_file:
                         output_file.write(file_content)
                         
                 except (binascii.Error, ValueError):
@@ -75,6 +80,20 @@ while True:
                     client_socket.sendall(b"EE,3,The file could not be written\n")
                 else:
                     client_socket.sendall(b"SC,Write is complete\n")
+                    
+            elif next_packet.startswith("CM,prompt,"):
+                prompt_command = next_packet.split(",", 2)[2]
+                
+                if prompt_command.startswith("mkdir "):
+                    folder_name = prompt_command[6:].strip()
+                    
+                    try:
+                        os.mkdir(os.path.join(current_dir, folder_name))
+                        client_socket.sendall(b"SC,Folder has been created\n")
+                    except OSError:
+                        client_socket.sendall(b"EE,3,Could not create folder\n")
+                else:
+                    client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
                 client_socket.sendall("EE,2,Unknown packet\n".encode("utf-8"))
                 
