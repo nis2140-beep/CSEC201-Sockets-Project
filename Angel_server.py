@@ -114,6 +114,17 @@ while True:
                     except OSError:
                         client_socket.sendall(b"EE,3,Folder could not be removed\n")
                         
+                elif prompt_command.startswith("del "):
+                    file_name = prompt_command[4:].strip()
+                    
+                    try:
+                        os.remove(os.path.join(current_dir, file_name))
+                        client_socket.sendall(b"SC,File has been deleted\n")
+                    except FileNotFoundError:
+                        client_socket.sendall(b"EE,1,File was not found\n")
+                    except OSError:
+                        client_socket.sendall(b"EE,3,File could not be deleted\n")
+                        
                 else:
                     client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
