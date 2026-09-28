@@ -103,6 +103,17 @@ while True:
                     else:
                         client_socket.sendall(b"EE,1,Folder was not found\n")
                         
+                elif prompt_command.startswith("rmdir "):
+                    folder_name = prompt_command[6:].strip()
+                    
+                    try:
+                        os.rmdir(os.path.join(current_dir, folder_name))
+                        client_socket.sendall(b"SC,Folder has been removed\n")
+                    except FileNotFoundError:
+                        client_socket.sendall(b"EE,1,Folder was not found\n")
+                    except OSError:
+                        client_socket.sendall(b"EE,3,Folder could not be removed\n")
+                        
                 else:
                     client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
