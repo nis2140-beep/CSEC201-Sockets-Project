@@ -125,6 +125,25 @@ while True:
                     except OSError:
                         client_socket.sendall(b"EE,3,File could not be deleted\n")
                         
+                elif prompt_command.startswith("ren "):
+                    names = prompt_command.split()
+                    
+                    if len(names) != 3:
+                        client_socket.sendall(b"EE,2,Use ren old_name new_name\n")
+                    else:
+                        old_folder = os.path.join(current_dir, names[1])
+                        new_folder = os.path.join(current_dir, names[2])
+                        
+                        if not os.path.isdir(old_folder):
+                            client_socket.sendall(b"EE,1,Folder was not found\n")
+                        elif os.path.exists(new_folder):
+                            client_socket.sendall(b"EE,3,New folder name already exists\n")
+                        else:
+                            try:
+                                os.rename(old_folder, new_folder)
+                                client_socket.sendall(b"SC,Folder has been renamed\n")
+                            except OSError:
+                                client_socket.sendall(b"EE,3,Folder could not be renamed\n")
                 else:
                     client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
