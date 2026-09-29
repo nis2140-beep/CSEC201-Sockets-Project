@@ -144,6 +144,21 @@ while True:
                                 client_socket.sendall(b"SC,Folder has been renamed\n")
                             except OSError:
                                 client_socket.sendall(b"EE,3,Folder could not be renamed\n")
+                                
+                elif prompt_command.startswith("dir "):
+                    folder_name = prompt_command[4:].strip()
+
+                    try:
+                        folder_path = os.path.join(current_dir, folder_name)
+                        file_names = "\n".join(sorted(os.listdir(folder_path)))
+                        encoded_names = base64.b64encode(file_names.encode("utf-8")).decode("ascii")
+
+                        client_socket.sendall(("DP," + encoded_names + "\n").encode("utf-8"))
+                        client_socket.sendall(b"SC,Directory listed\n")
+                    except (FileNotFoundError, NotADirectoryError):
+                        client_socket.sendall(b"EE,1,Folder was not found\n")
+                    except OSError:
+                        client_socket.sendall(b"EE,3,Folder could not be listed\n")
                 else:
                     client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
