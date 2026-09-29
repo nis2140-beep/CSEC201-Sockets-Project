@@ -1,5 +1,6 @@
 import rsa
 import os
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes #from claude, for the AES cipher
 
 # --------------------------------------------- ! functions will be later integrated into the client and server files ! ---------------------------------------------
 
@@ -36,6 +37,7 @@ public_rsa, private_rsa = create_rsa_keys() # unpacking the tuple and separating
 
 def create_session_key(): # FOR CLIENT: generates and returns a random number of bytes --> in this case, 16 random bytes 
     session_key = os.urandom(16)
+    #session_key = os.urandom(32)
     return session_key  
 
 def encrypt_rsa(session_key, server_public_rsa): # FOR CLIENT: takes two arguments i.e. session_key and the server_public_key
@@ -47,10 +49,33 @@ def decrypt_rsa(encrypted, server_private_key): #FOR SERVER: takes the encrypted
     decrypted = rsa.decrypt(encrypted, server_private_key) #decrypts the session key from the client
     return decrypted # returns the decrypted session key
 
+# UP NEXT: 
+# def encrypt_aes():
+# def decrypt_aes():
 
-
+# AES is used to lock all the files that get transferred between server and client; session_key is used as a lock(?) for the AES cipher
+def encrypt_aes(file_content, session_key): #takes the file that is to be encrypted via aes, and uses the session_key as a key for the cipher
+   
+    iv = os.urandom(16) #----> initialization vector, makes it so that whatever is being encrypted doesn't transform into the same ciphertext when encrypted multiple times; randomizes the ciphertext content-ish
+   
+    cipher = Cipher(algorithms.AES(session_key), modes.CFB(iv)) 
+    # ----> basically: use AES with session_key as the key, run it in CFB mode (starting from iv), wrapped all into Cipher(...) to turn algorithm and mode into 1 object
+   
+    encryptor = cipher.encryptor() #---> this is the object that turns the normal text into ciphertext
+    
+    ciphertext = encryptor.update(file_content) + encryptor.finalize()
+    # ----> tells the encryptor to get to work encrypting (gives the file_content to the encryptor) + signals encryptor that the content is done, returns leftover bytes 
+    # combined into one ciphertext (encrypted result)
+    
+    return iv + ciphertext  # gives the EXACT SAME IV for the decryptor + the ciphertext/encrypted result
     
     
+
+
+
+
+
+
 
 
 
@@ -64,6 +89,8 @@ def decrypt_rsa(encrypted, server_private_key): #FOR SERVER: takes the encrypted
 # print(public_rsa.save_pkcs1()) # serializes the key...? ---> turns into bytes
 
 
+
+
 # # testing the encrypt and decrypt
 # test = "goodnight <3"
 # server_pub = public_rsa
@@ -75,6 +102,7 @@ def decrypt_rsa(encrypted, server_private_key): #FOR SERVER: takes the encrypted
 
 # print("ENCRYPTED: ", secret)
 # print("DECRYPTED: ",unsecret) # IT WORKSSSSS
+
 
 
 
