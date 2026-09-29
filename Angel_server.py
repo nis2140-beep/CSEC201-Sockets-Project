@@ -182,6 +182,26 @@ while True:
                                 client_socket.sendall(b"SC,File has been copied\n")
                             except OSError:
                                 client_socket.sendall(b"EE,3,File could not be copied\n")
+                                
+                elif prompt_command.startswith("move "):
+                    names = prompt_command.split()
+
+                    if len(names) != 3:
+                        client_socket.sendall(b"EE,2,Use move source destination\n")
+                    else:
+                        source = os.path.join(current_dir, names[1])
+                        destination = os.path.join(current_dir, names[2])
+
+                        if not os.path.isfile(source):
+                            client_socket.sendall(b"EE,1,Source file was not found\n")
+                        elif os.path.exists(destination):
+                            client_socket.sendall(b"EE,3,Destination already exists\n")
+                        else:
+                            try:
+                                os.rename(source, destination)
+                                client_socket.sendall(b"SC,File has been moved\n")
+                            except OSError:
+                                client_socket.sendall(b"EE,3,File could not be moved\n")
                 else:
                     client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
