@@ -206,6 +206,10 @@ while True:
                 elif prompt_command.startswith("echo "):
                     message_text = prompt_command[5:]
                     client_socket.sendall(("SC," + message_text + "\n").encode("utf-8"))
+                    
+                elif prompt_command == "hostname -f":
+                    computer_name = socket.getfqdn()
+                    client_socket.sendall(("SC," + computer_name + "\n").encode("utf-8"))
                 else:
                     client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
