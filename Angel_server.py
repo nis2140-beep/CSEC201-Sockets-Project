@@ -202,6 +202,10 @@ while True:
                                 client_socket.sendall(b"SC,File has been moved\n")
                             except OSError:
                                 client_socket.sendall(b"EE,3,File could not be moved\n")
+                                
+                elif prompt_command.startswith("echo "):
+                    message_text = prompt_command[5:]
+                    client_socket.sendall(("SC," + message_text + "\n").encode("utf-8"))
                 else:
                     client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
