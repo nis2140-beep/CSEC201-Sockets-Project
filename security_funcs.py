@@ -50,7 +50,6 @@ def decrypt_rsa(encrypted, server_private_key): #FOR SERVER: takes the encrypted
     return decrypted # returns the decrypted session key
 
 # UP NEXT: 
-# def encrypt_aes():
 # def decrypt_aes():
 
 # AES is used to lock all the files that get transferred between server and client; session_key is used as a lock(?) for the AES cipher
@@ -70,7 +69,22 @@ def encrypt_aes(file_content, session_key): #takes the file that is to be encryp
     return iv + ciphertext  # gives the EXACT SAME IV for the decryptor + the ciphertext/encrypted result
     
     
-
+def decrypt_aes(encrypted_file, session_key): # takes the encrypted file, uses the session_key as, well, the key for AES cipher
+    iv = encrypted_file[:16] #----> slices the AES encrypted file to take the iv only
+    ciphertext = encrypted_file[16:] # ----> slices to take everything after the iv as the encrypted ciphertext
+    
+    cipher = Cipher(algorithms.AES(session_key), modes.CFB(iv)) 
+    # ----> basically: use AES with session_key as the key, run it in CFB mode (starting from iv), wrapped all into Cipher(...) to turn algorithm and mode into 1 object
+    # essentially setting up the AES
+    
+    decryptor = cipher.decryptor() #----> the object that actually turns the ciphertext into normal text
+    
+    decrypted_file = decryptor.update(ciphertext) + decryptor.finalize() 
+    # ---> reverse of the encryptor one 
+    # tells the decryptor to get to work on the ciphertext + tells decryptor khalas and to return any leftover bytes
+    
+    return decrypted_file
+    
 
 
 
