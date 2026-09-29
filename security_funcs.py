@@ -49,8 +49,10 @@ def decrypt_rsa(encrypted, server_private_key): #FOR SERVER: takes the encrypted
     decrypted = rsa.decrypt(encrypted, server_private_key) #decrypts the session key from the client
     return decrypted # returns the decrypted session key
 
-# UP NEXT: 
-# def decrypt_aes():
+
+
+
+
 
 # AES is used to lock all the files that get transferred between server and client; session_key is used as a lock(?) for the AES cipher
 def encrypt_aes(file_content, session_key): #takes the file that is to be encrypted via aes, and uses the session_key as a key for the cipher
@@ -136,8 +138,14 @@ def decrypt_aes(encrypted_file, session_key): # takes the encrypted file, uses t
 
 
 
-    
+# testing the AES encryption stuff
+code = create_session_key()
 
+str = "kinda hungry ngl"
+msg = str.encode() # needs to be bytes in order for the whole aes process to work
 
+encrypted_msg = encrypt_aes(msg, code)
+decrypted_msg = decrypt_aes(encrypted_msg, code)
 
-
+print("THE MESSAGE AS BYTES: ", decrypted_msg) #returns as bytes though --> bc of .encode()
+print("THE MESSAGE AS STRING: ", decrypted_msg.decode()) #.decode() turns it back to string
