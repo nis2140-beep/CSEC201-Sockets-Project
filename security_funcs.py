@@ -54,7 +54,7 @@ def decrypt_rsa(encrypted, server_private_key): #FOR SERVER: takes the encrypted
 
 
 
-# AES is used to lock all the files that get transferred between server and client; session_key is used as a lock(?) for the AES cipher
+# AES is used to lock all the files that get transferred between server and client; session_key is used as a key for the AES cipher
 def encrypt_aes(file_content, session_key): #takes the file that is to be encrypted via aes, and uses the session_key as a key for the cipher
    
     iv = os.urandom(16) #----> initialization vector, makes it so that whatever is being encrypted doesn't transform into the same ciphertext when encrypted multiple times; randomizes the ciphertext content-ish
@@ -69,6 +69,7 @@ def encrypt_aes(file_content, session_key): #takes the file that is to be encryp
     # combined into one ciphertext (encrypted result)
     
     return iv + ciphertext  # gives the EXACT SAME IV for the decryptor + the ciphertext/encrypted result
+    
     
     
 def decrypt_aes(encrypted_file, session_key): # takes the encrypted file, uses the session_key as, well, the key for AES cipher
@@ -138,14 +139,48 @@ def decrypt_aes(encrypted_file, session_key): # takes the encrypted file, uses t
 
 
 
-# testing the AES encryption stuff
-code = create_session_key()
+# # testing the AES encryption stuff
+# code = create_session_key()
 
-str = "kinda hungry ngl"
-msg = str.encode() # needs to be bytes in order for the whole aes process to work
+# str = "kinda hungry ngl"
+# msg = str.encode() # needs to be bytes in order for the whole aes process to work
 
-encrypted_msg = encrypt_aes(msg, code)
-decrypted_msg = decrypt_aes(encrypted_msg, code)
+# encrypted_msg = encrypt_aes(msg, code)
+# decrypted_msg = decrypt_aes(encrypted_msg, code)
 
-print("THE MESSAGE AS BYTES: ", decrypted_msg) #returns as bytes though --> bc of .encode()
-print("THE MESSAGE AS STRING: ", decrypted_msg.decode()) #.decode() turns it back to string
+# print("THE MESSAGE AS BYTES: ", decrypted_msg) #returns as bytes though --> bc of .encode()
+# print("THE MESSAGE AS STRING: ", decrypted_msg.decode()) #.decode() turns it back to string
+
+
+
+
+# testing the rsa/aes relationship thingy "( - ⌓ - )
+
+# 1. server and client generate their own rsa key pairs
+# 2. server sends its public key to client
+# 3. client creates session key
+# 4. client encrypts session key via rsa
+# 5. client sends encrypted session key to server
+# 6. server decrypts session key
+# 7. session key is then used for AES 
+
+#SERVER ---> rsa keys already generated up there^^
+server_pb_key = public_rsa # js for the simulation, assume its a different public key from the client's
+
+#CLIENT
+session_key = create_session_key()
+
+#--> receives the server's public key, rsa encrypt's the session key w it, sends to server after
+encrypted_key = encrypt_rsa(session_key, server_pb_key)
+
+#SERVER
+CL_session_key = decrypt_rsa(encrypted_key, private_rsa)
+print(session_key == CL_session_key) # true == worked
+
+message = "use your imagination".encode()
+
+encrypted_file = encrypt_aes(message, CL_session_key)
+print("encrypted file: ", encrypted_file)
+
+decrypted_file = decrypt_aes(encrypted_file, CL_session_key)
+print("decrypted file: ", decrypted_file.decode())
