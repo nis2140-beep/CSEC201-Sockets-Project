@@ -2,6 +2,7 @@ import socket
 import base64
 import binascii
 import os
+import threading
 
 # Creating the listening socket
 host = "127.0.0.1"
@@ -13,12 +14,8 @@ server_socket.listen(5)
 
 print("RFMP server is listening on port", port)
 
-
-# Accepting clients
-while True:
-    client_socket, address = server_socket.accept()
+def client_handler(client_socket, address):
     print("Client is connected:", address)
-
 
     # Start-Packet (client to server) (Set-up phase)
     client_reader = client_socket.makefile("r", encoding="utf-8")
@@ -224,3 +221,10 @@ while True:
     client_socket.close()
 
 
+
+while True:
+    client_socket, address = server_socket.accept()
+    
+    threading.Thread(
+        target=client_handler, args=(client_socket, address), daemon=True
+    ).start()
