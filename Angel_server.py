@@ -159,6 +159,29 @@ while True:
                         client_socket.sendall(b"EE,1,Folder was not found\n")
                     except OSError:
                         client_socket.sendall(b"EE,3,Folder could not be listed\n")
+                        
+                elif prompt_command.startswith("copy "):
+                    names = prompt_command.split()
+
+                    if len(names) != 3:
+                        client_socket.sendall(b"EE,2,Use copy source destination\n")
+                    else:
+                        source = os.path.join(current_dir, names[1])
+                        destination = os.path.join(current_dir, names[2])
+
+                        if not os.path.isfile(source):
+                            client_socket.sendall(b"EE,1,Source file was not found\n")
+                        elif os.path.exists(destination):
+                            client_socket.sendall(b"EE,3,Destination already exists\n")
+                        else:
+                            try:
+                                with open(source, "rb") as original:
+                                    file_data = original.read()
+                                with open(destination, "xb") as copied_file:
+                                    copied_file.write(file_data)
+                                client_socket.sendall(b"SC,File has been copied\n")
+                            except OSError:
+                                client_socket.sendall(b"EE,3,File could not be copied\n")
                 else:
                     client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
