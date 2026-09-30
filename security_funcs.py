@@ -90,9 +90,34 @@ def decrypt_aes(encrypted_file, session_key): # takes the encrypted file, uses t
     
 
 # UP NEXT: 
+# ADD THE CAESAR FUNCTION RAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 # -> integrate RSA functions into both client and server, check if the transfer works properly between client and server
 # --> then integrate the AES cipher into the client and server files
 # ---> combine the RSA + AES to work for the packets
+
+def encrypt_caesar(file_content, shift): #takes STRING, uses shift (session_key) for the cipher
+    res = "" # caesar-encrypted text will end up here
+    for char in file_content: # loops through the whole file
+        if char.isalpha(): #checks if char is a letter (true), false if spaces or numbers or punctuation
+            base = ord('A') if char.isupper() else ord('a') #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # ord() turns the letter into the numerical representation, puts it into base
+            
+            res += chr((ord(char) - base + shift) % 26 + base) #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        else:
+            res += char #goes here if the char isn't a letter, leaves it alone
+    
+    return res
+
+def decrypt_caesar(encrypted_file, shift):
+    return encrypt_caesar(encrypted_file, -shift) #calls the encryption function but -shift so it goes backwards
+
+    
+            
+        
+        
+        
+    
+    
 
 
 
@@ -167,23 +192,28 @@ def decrypt_aes(encrypted_file, session_key): # takes the encrypted file, uses t
 # 6. server decrypts session key
 # 7. session key is then used for AES 
 
-#SERVER ---> rsa keys already generated up there^^
-server_pb_key = public_rsa # js for the simulation, assume its a different public key from the client's
+# #SERVER ---> rsa keys already generated up there^^
+# server_pb_key = public_rsa # js for the simulation, assume its a different public key from the client's
 
-#CLIENT
-session_key = create_session_key()
+# #CLIENT
+# session_key = create_session_key()
 
-#--> receives the server's public key, rsa encrypt's the session key w it, sends to server after
-encrypted_key = encrypt_rsa(session_key, server_pb_key)
+# #--> receives the server's public key, rsa encrypt's the session key w it, sends to server after
+# encrypted_key = encrypt_rsa(session_key, server_pb_key)
 
-#SERVER
-CL_session_key = decrypt_rsa(encrypted_key, private_rsa)
-print(session_key == CL_session_key) # true == worked
+# #SERVER
+# CL_session_key = decrypt_rsa(encrypted_key, private_rsa)
+# print(session_key == CL_session_key) # true == worked
 
-message = "use your imagination".encode()
+# message = "use your imagination".encode()
 
-encrypted_file = encrypt_aes(message, CL_session_key)
-print("encrypted file: ", encrypted_file)
+# encrypted_file = encrypt_aes(message, CL_session_key)
+# print("encrypted file: ", encrypted_file)
 
-decrypted_file = decrypt_aes(encrypted_file, CL_session_key)
-print("decrypted file: ", decrypted_file.decode())
+# decrypted_file = decrypt_aes(encrypted_file, CL_session_key)
+# print("decrypted file: ", decrypted_file.decode())
+
+
+
+
+# testing the caesar cipher
