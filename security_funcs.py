@@ -89,7 +89,10 @@ def decrypt_aes(encrypted_file, session_key): # takes the encrypted file, uses t
     return decrypted_file #boom file decrypted 
     
 
-
+# UP NEXT: 
+# -> integrate RSA functions into both client and server, check if the transfer works properly between client and server
+# --> then integrate the AES cipher into the client and server files
+# ---> combine the RSA + AES to work for the packets
 
 
 
