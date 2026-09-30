@@ -90,11 +90,12 @@ def decrypt_aes(encrypted_file, session_key): # takes the encrypted file, uses t
     
 
 # UP NEXT: 
-# ADD THE CAESAR FUNCTION RAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 # -> integrate RSA functions into both client and server, check if the transfer works properly between client and server
 # --> then integrate the AES cipher into the client and server files
 # ---> combine the RSA + AES to work for the packets
 
+
+# caesar cipher just swaps the letters around based on a shift; the session_key will act as the shift here
 def encrypt_caesar(file_content, shift): #takes STRING, uses shift (session_key) for the cipher
     res = "" # caesar-encrypted text will end up here
     for char in file_content: # loops through the whole file
@@ -217,3 +218,14 @@ def decrypt_caesar(encrypted_file, shift):
 
 
 # testing the caesar cipher
+test = "i'm in the bus lol"
+
+session_key = create_session_key()
+session_key = session_key[0] % 26 #turns the session_key from byte into int so it can be used for the caesar cipher
+
+
+encrypted = encrypt_caesar(test, session_key)
+print("this is the text after encrypting: ", encrypted)
+
+decrypted = decrypt_caesar(encrypted, session_key)
+print("this is the text after ecrypting: ", decrypted) # IT WORKSSSSS
