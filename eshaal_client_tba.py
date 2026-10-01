@@ -1,6 +1,17 @@
 import socket # Provides TCP socket functions 
 import base64 # Used to decode file data received from the server
 
+import rsa
+import os
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes #from claude, for the AES cipher
+
+def create_rsa_keys(): # creating the RSA public and private keys
+    public_key, private_key = rsa.newkeys(2048) #changed from 1024 -> 2048
+    
+    return public_key, private_key # returns keys: public, private --> returns as a looooong tuple
+public_rsa, private_rsa = create_rsa_keys() # unpacking the tuple and separating the two keys as two different variables
+
+
 # Sends 1 RFMP packet followed by a newline
 def send_packet(sock, packet):
     sock.sendall((packet + "\n").encode("utf-8"))

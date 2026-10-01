@@ -42,7 +42,7 @@ def create_session_key(): # FOR CLIENT: generates and returns a random number of
 
 def encrypt_rsa(session_key, server_public_rsa): # FOR CLIENT: takes two arguments i.e. session_key and the server_public_key
     encrypted = rsa.encrypt(session_key, server_public_rsa) # encrypts it
-    return encrypted #returns the ecrypted session key
+    return encrypted #returns the encrypted session key
 
 #decrypting (for the server)
 def decrypt_rsa(encrypted, server_private_key): #FOR SERVER: takes the encrypted session key and the server's own private key
@@ -248,24 +248,35 @@ def decrypt_caesar(encrypted_file, shift):
 # 7. session key is then used for CAESAR 
 
 
-#SERVER ---> rsa keys already generated up there^^
-server_pb_key = public_rsa # js for the simulation, assume its a different public key from the client's
+# #SERVER ---> rsa keys already generated up there^^
+# server_pb_key = public_rsa # js for the simulation, assume its a different public key from the client's
 
-#CLIENT
-session_key = create_session_key()
+# #CLIENT
+# session_key = create_session_key()
 
-#--> receives the server's public key, rsa encrypt's the session key w it, sends to server after
-encrypted_key = encrypt_rsa(session_key, server_pb_key)
+# #--> receives the server's public key, rsa encrypt's the session key w it, sends to server after
+# encrypted_key = encrypt_rsa(session_key, server_pb_key)
 
-#SERVER
-CL_session_key = decrypt_rsa(encrypted_key, private_rsa)
-print(session_key == CL_session_key) # true == worked
+# #SERVER
+# CL_session_key = decrypt_rsa(encrypted_key, private_rsa)
+# print(session_key == CL_session_key) # true == worked
 
-message = "all i see is sky for forever"
-session_shift = CL_session_key[0] % 26
+# message = "all i see is sky for forever"
+# session_shift = CL_session_key[0] % 26
 
-encrypted_file = encrypt_caesar(message, session_shift)
-print("encrypted file: ", encrypted_file)
+# encrypted_file = encrypt_caesar(message, session_shift)
+# print("encrypted file: ", encrypted_file)
 
-decrypted_file = decrypt_caesar(encrypted_file, session_shift)
-print("decrypted file: ", decrypted_file)
+# decrypted_file = decrypt_caesar(encrypted_file, session_shift)
+# print("decrypted file: ", decrypted_file)
+
+#  -------------------------------------------------- ! NOTES ! ----------------------------------------------------- 
+
+#  STAGE: integrating RSA keypairs
+# --> SERVER SIDE:
+# sending over the public key needs: 
+# turn public key object into raw bytes -> so it can be sent over the sockets
+# turn public key as raw bytes into safe bytes -> so the raw bytes dont have any '\n' or ',' that could be a problem when parsing
+# turn the safe bytes into string -> so it can be sent with the "CC" and can be added to the packet
+# turn the whole packet text with the key into bytes for the .sendall()
+

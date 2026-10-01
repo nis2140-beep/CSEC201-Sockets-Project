@@ -4,6 +4,14 @@ import binascii
 import os
 import threading
 
+import rsa
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes #from claude, for the AES cipher
+
+def create_rsa_keys(): # creating the RSA public and private keys
+    public_key, private_key = rsa.newkeys(2048) #changed from 1024 -> 2048
+    
+    return public_key, private_key # returns keys: public, private --> returns as a looooong tuple
+
 # Creating the listening socket
 host = "127.0.0.1"
 port = 8888
@@ -213,6 +221,37 @@ def client_handler(client_socket, address):
                 client_socket.sendall("EE,2,Unknown packet\n".encode("utf-8"))
                 
         print("Client has been disconnected")
+        
+    elif fields == ["SS", "RFMP", "v1.0", "1"]: #if the client chooses a secure connection
+    
+        # generate the rsa key pair
+        public_rsa, private_rsa = create_rsa_keys() # unpacking the tuple and separating the two keys as two different variables
+        server_pbkey = public_rsa.save_pkcs1() #---> turns the public_rsa OBJECT as bytes so it can be sent over the socket
+        encoded_sv_pbkey = base64.b64encode(server_pbkey).decode("ascii") #---> turns ^^ into safe bytes, i.e. no \n or , and then turns the whole thing into a string for the packet
+        
+        # send the public rsa key to the client, .encode() bc of .sendall()
+        client_socket.sendall(("CC," + encoded_sv_pbkey + "\n").encode("utf-8"))
+        print("Secured connection confirmed")
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
     else:
         client_socket.sendall("EE,4,Invalid setup packet\n".encode("utf-8"))
         print("Invalid setup packet:", message)
