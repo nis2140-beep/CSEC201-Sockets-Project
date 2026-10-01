@@ -89,10 +89,7 @@ def decrypt_aes(encrypted_file, session_key): # takes the encrypted file, uses t
     return decrypted_file #boom file decrypted 
     
 
-# UP NEXT: 
-# -> integrate RSA functions into both client and server, check if the transfer works properly between client and server
-# --> then integrate the AES cipher into the client and server files
-# ---> combine the RSA + AES to work for the packets
+
 
 
 # caesar cipher just swaps the letters around based on a shift; the session_key will act as the shift here
@@ -100,20 +97,30 @@ def encrypt_caesar(file_content, shift): #takes STRING, uses shift (session_key)
     res = "" # caesar-encrypted text will end up here
     for char in file_content: # loops through the whole file
         if char.isalpha(): #checks if char is a letter (true), false if spaces or numbers or punctuation
-            base = ord('A') if char.isupper() else ord('a') #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # ord() turns the letter into the numerical representation, puts it into base
             
-            res += chr((ord(char) - base + shift) % 26 + base) #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            base = ord('A') if char.isupper() else ord('a') 
+            # ord() turns the letter into the numerical representation, puts it into base
+            # A/a --> starting points
+            
+            res += chr((ord(char) - base + shift) % 26 + base) 
+            # chr() does the oppposite of ord(), turns a number into the letter representation
+            # (ord(char) - base) --> gets the position of the letter on the alphabet (0-25)
+            # + shift -------------> the shifting part of the caesar cipher, moves it (shift) number of times
+            # % 26 ----------------> if the result from (ord(char) - base + shift) is OVER 25
+            # + base --------------> turns the result back into a real character code
+            
         else:
             res += char #goes here if the char isn't a letter, leaves it alone
-    
     return res
 
 def decrypt_caesar(encrypted_file, shift):
     return encrypt_caesar(encrypted_file, -shift) #calls the encryption function but -shift so it goes backwards
 
     
-            
+# UP NEXT: 
+# -> integrate RSA functions into both client and server, check if the transfer works properly between client and server
+# --> then integrate the AES cipher into the client and server files
+# ---> combine the RSA + AES to work for the packets            
         
         
         
@@ -217,15 +224,48 @@ def decrypt_caesar(encrypted_file, shift):
 
 
 
-# testing the caesar cipher
-test = "i'm in the bus lol"
+# # testing the caesar cipher
+# test = "i'm in the bus lol"
 
+# session_key = create_session_key()
+# session_key = session_key[0] % 26 #turns the session_key from byte into int so it can be used for the caesar cipher
+
+
+# encrypted = encrypt_caesar(test, session_key)
+# print("this is the text after encrypting: ", encrypted)
+
+# decrypted = decrypt_caesar(encrypted, session_key)
+# print("this is the text after ecrypting: ", decrypted) # IT WORKSSSSS
+
+
+# testing the rsa/caesar relationship
+# 1. server and client generate their own rsa key pairs
+# 2. server sends its public key to client
+# 3. client creates session key
+# 4. client encrypts session key via rsa
+# 5. client sends encrypted session key to server
+# 6. server decrypts session key
+# 7. session key is then used for CAESAR 
+
+
+#SERVER ---> rsa keys already generated up there^^
+server_pb_key = public_rsa # js for the simulation, assume its a different public key from the client's
+
+#CLIENT
 session_key = create_session_key()
-session_key = session_key[0] % 26 #turns the session_key from byte into int so it can be used for the caesar cipher
 
+#--> receives the server's public key, rsa encrypt's the session key w it, sends to server after
+encrypted_key = encrypt_rsa(session_key, server_pb_key)
 
-encrypted = encrypt_caesar(test, session_key)
-print("this is the text after encrypting: ", encrypted)
+#SERVER
+CL_session_key = decrypt_rsa(encrypted_key, private_rsa)
+print(session_key == CL_session_key) # true == worked
 
-decrypted = decrypt_caesar(encrypted, session_key)
-print("this is the text after ecrypting: ", decrypted) # IT WORKSSSSS
+message = "all i see is sky for forever"
+session_shift = CL_session_key[0] % 26
+
+encrypted_file = encrypt_caesar(message, session_shift)
+print("encrypted file: ", encrypted_file)
+
+decrypted_file = decrypt_caesar(encrypted_file, session_shift)
+print("decrypted file: ", decrypted_file)
