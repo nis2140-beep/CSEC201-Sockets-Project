@@ -5,7 +5,8 @@ import os
 import threading
 import rsa
 
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
+from cryptography.hazmat.decrepit.ciphers import modes
 
 def create_rsa_keys(): # creating the RSA public and private keys
     public_key, private_key = rsa.newkeys(2048) #changed from 1024 -> 2048
@@ -52,7 +53,7 @@ def decrypt_aes(encrypted_file, session_key): # takes the encrypted file, uses t
 def encrypt_caesar(file_content, shift): #takes STRING, uses shift (session_key) for the cipher
     res = "" # caesar-encrypted text will end up here
     for char in file_content: # loops through the whole file
-        if char.isalpha(): #checks if char is a letter (true), false if spaces or numbers or punctuation
+        if "A" <= char <= "Z" or "a" <= char <= "z": #checks if char is a letter (true), false if spaces or numbers or punctuation
             
             base = ord('A') if char.isupper() else ord('a') 
             # ord() turns the letter into the numerical representation, puts it into base
@@ -299,22 +300,52 @@ def client_handler(client_socket, address, client_reader):
         
         # send the public rsa key to the client, .encode() bc of .sendall()
         client_socket.sendall(("CC," + encoded_sv_pbkey + "\n").encode("utf-8"))
-        print("Secured connection confirmed")
-        # receive the encrypted session key from the client
+        # Receiving the client's encryption packet
         encryption_packet = client_reader.readline()
 
-        if encryption_packet == "":
+        if encryption_packet == "" or encryption_packet.strip() == "End":
             return
 
-        encryption_packet = encryption_packet.strip()
+        try:
+            encryption_fields = encryption_packet.strip().split(",", 3)
 
-        # decode the encrypted session key from Base64
-        encrypted_session_key = base64.b64decode(encryption_packet)
+            if len(encryption_fields) != 4:
+                raise ValueError
 
-        # decrypt the session key using the server's private RSA key
-        session_key = decrypt_rsa(encrypted_session_key, private_rsa)
+            if encryption_fields[0] != "EC":
+                raise ValueError
 
+            algorithm = encryption_fields[1]
+            if algorithm not in ("AES", "Caesar"):
+                raise ValueError
+
+            # Recovering the session key using the server's private key
+            encrypted_session_key = base64.b64decode(
+                encryption_fields[2], validate=True
+            )
+            session_key = decrypt_rsa(encrypted_session_key, private_rsa)
+
+            if len(session_key) != 16:
+                raise ValueError
+
+            # Receiving the username and client's public key
+            username, encoded_client_key = encryption_fields[3].split(":", 1)
+            client_public_key = base64.b64decode(
+                encoded_client_key, validate=True
+            )
+
+            if not username.strip() or not client_public_key:
+                raise ValueError
+
+        except (binascii.Error, ValueError, rsa.DecryptionError):
+            client_socket.sendall(b"EE,4,Invalid encryption packet\n")
+            return
+
+        caesar_shift = session_key[0] % 25 + 1
+
+        print("Secured connection confirmed:", algorithm)
         print("Session key received and decrypted")
+        
         # Setting the client's starting folder
         current_dir = os.path.dirname(os.path.abspath(__file__))
         print("Starting folder:", current_dir)
@@ -335,8 +366,14 @@ def client_handler(client_socket, address, client_reader):
                     with open(os.path.join(current_dir, file_name), "rb") as file:
                         file_content = file.read()
 
-                    # encrypt the file using AES and the session key
-                    encrypted_file = encrypt_aes(file_content, session_key)
+                    # Encrypting the file using the selected algorithm
+                    if algorithm == "AES":
+                        encrypted_file = encrypt_aes(file_content, session_key)
+                    else:
+                        file_text = file_content.decode("latin-1")
+                        encrypted_file = encrypt_caesar(
+                            file_text, caesar_shift
+                        ).encode("latin-1")
 
                     # Base64 encode the encrypted file for the RFMP packet
                     encoded_file_content = base64.b64encode(encrypted_file).decode("ascii")
@@ -373,8 +410,14 @@ def client_handler(client_socket, address, client_reader):
                     # Base64 decode the encrypted file
                     encrypted_file = base64.b64decode(data_packet[3:], validate=True)
 
-                    # decrypt the file using AES and the session key
-                    file_content = decrypt_aes(encrypted_file, session_key)
+                    # Decrypting the file using the selected algorithm
+                    if algorithm == "AES":
+                        file_content = decrypt_aes(encrypted_file, session_key)
+                    else:
+                        encrypted_text = encrypted_file.decode("latin-1")
+                        file_content = decrypt_caesar(
+                            encrypted_text, caesar_shift
+                        ).encode("latin-1")
 
                     with open(os.path.join(current_dir, file_name), "wb") as output_file:
                         output_file.write(file_content)
@@ -458,7 +501,18 @@ def client_handler(client_socket, address, client_reader):
                     try:
                         folder_path = os.path.join(current_dir, folder_name)
                         file_names = "\n".join(sorted(os.listdir(folder_path)))
-                        encoded_names = base64.b64encode(file_names.encode("utf-8")).decode("ascii")
+                        # Encrypting the directory output
+                        directory_data = file_names.encode("utf-8")
+
+                        if algorithm == "AES":
+                            encrypted_names = encrypt_aes(directory_data, session_key)
+                        else:
+                            directory_text = directory_data.decode("latin-1")
+                            encrypted_names = encrypt_caesar(
+                                directory_text, caesar_shift
+                            ).encode("latin-1")
+
+                        encoded_names = base64.b64encode(encrypted_names).decode("ascii")
 
                         client_socket.sendall(("DP," + encoded_names + "\n").encode("utf-8"))
                         client_socket.sendall(b"SC,Directory listed\n")
