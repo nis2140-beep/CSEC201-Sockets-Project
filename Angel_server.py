@@ -14,12 +14,14 @@ server_socket.listen(5)
 
 print("RFMP server is listening on port", port)
 
-def client_handler(client_socket, address):
+def client_handler(client_socket, address, client_reader):
     print("Client is connected:", address)
 
     # Start-Packet (client to server) (Set-up phase)
-    client_reader = client_socket.makefile("r", encoding="utf-8")
-    message = client_reader.readline().strip()
+    message = client_reader.readline()
+    if message == "":
+        return
+    message = message.strip()
     print("Client sent: ", message)
     
     fields = message.split(",")
@@ -61,7 +63,14 @@ def client_handler(client_socket, address):
                 file_name = next_packet.split(",", 2)[2]
                 print("The file to write:", file_name)
                 
-                data_packet = client_reader.readline().strip()
+                data_packet = client_reader.readline()
+                if data_packet == "":
+                    return
+
+                data_packet = data_packet.strip()
+                if data_packet == "End":
+                    print("Client has ended the session")
+                    return
                 if not data_packet.startswith("DP,"):
                     client_socket.sendall(b"EE,2,Expected data packet\n")
                     continue
@@ -212,19 +221,31 @@ def client_handler(client_socket, address):
             else:
                 client_socket.sendall("EE,2,Unknown packet\n".encode("utf-8"))
                 
-        print("Client has been disconnected")
+        
     else:
         client_socket.sendall("EE,4,Invalid setup packet\n".encode("utf-8"))
         print("Invalid setup packet:", message)
         
-    client_reader.close()
-    client_socket.close()
 
 
 
+# Managing the connection and closing it after the session
+def handle_connection(client_socket, address):
+    try:
+        with client_socket:
+            with client_socket.makefile("r", encoding="utf-8") as client_reader:
+                client_handler(client_socket, address, client_reader)
+
+    except (OSError, UnicodeError) as error:
+        print("Client connection error:", address, error)
+
+    finally:
+        print("Client has been disconnected:", address)
 while True:
     client_socket, address = server_socket.accept()
-    
+
     threading.Thread(
-        target=client_handler, args=(client_socket, address), daemon=True
+        target=handle_connection,
+        args=(client_socket, address),
+        daemon=True
     ).start()
