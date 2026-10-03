@@ -256,12 +256,27 @@ int main(void)
                         printf("Failed to decode the file data.\n");
                     }  
                 }
-                else
+                else if (strncmp(response, "EE,", 3) == 0)
                 {
-                    printf("Server response: %s\n", response);
+                   printf("Error received from server: %s\n", response);
                  }
+                 else
+                    {
+                        printf("Unexpected response from server: %s\n", response);
+                    }
             }
         }
+    }
+    /* Create & send the RFMP closing packet */
+    const char *end_packet = "End\n";
+
+    if (send(client_socket, end_packet, (int)strlen(end_packet), 0) == SOCKET_ERROR)
+    {
+        printf("Failed to send RFMP closing packet.\n");
+    }
+    else
+    {
+        printf("Sent closing packet: End\n");
     }
 }
          
