@@ -176,14 +176,49 @@ def prompt_command(sock,reader):
         
         # Receive the server's response to the prompt command
         response = receieve_packet(reader)
+        
+        # Check whether the server returned a Data Packet
+        if response.startswith("DP,"):
+            encoded_data = response[3:]
+            received_data = base64.b64decode(encoded_data)
             
-        # Check whether the server successfully executed the command
-        if response.startswith("SC,"):
+            # Decrypt directory listing when secured AES mode is active
+            if secure_mode and algorithm == "AES":
+                directory_listing = decrypt_aes(
+                    received_data,
+                    session_key
+                ).decode("utf-8")
+            
+            # Decrypt directory listing when secured Caesar mode is active
+            elif secure_mode and algorithm == "Caesar":
+                encrypted_text = received_data.decode("latin-1")
+                
+                directory_listing = decrypt_caesar(
+                    encrypted_text,
+                    caesar_shift
+                ) 
+            
+            # Unsecured directory listing contains normal bytes
+            else:
+                directory_listing = received_data.decode("utf-8")
+            
+            print("\nDirectory listing received from server:")
+            print(directory_listing)
+            
+            # Receive the final success packet from the server
+            status = receieve_packet(reader)
+            print("Server status:", status)
+               
+        # Check whether the server successfully executed the command=
+        elif response.startswith("SC,"):
                 print("Server status:", response)
                 
         # Check whether server returned error 
         elif response.startswith("EE,"):
                 print("Error received from server:", response)
+        
+        else:
+                print("Unexpected response from server:", response)
 
 HOST = "127.0.0.1" # Server address used for same machine testing
 PORT = 8888 # Must match the server port
