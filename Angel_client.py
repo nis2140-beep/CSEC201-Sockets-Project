@@ -1,6 +1,16 @@
 import socket # Provides TCP socket functions 
 import base64 # Used to decode file data received from the server
+import rsa
 
+from security_funcs import (
+    create_rsa_keys,
+    create_session_key,
+    encrypt_rsa,
+    encrypt_aes,
+    decrypt_aes,
+    encrypt_caesar,
+    decrypt_caesar
+)
 # Sends 1 RFMP packet followed by a newline
 def send_packet(sock, packet):
     sock.sendall((packet + "\n").encode("utf-8"))
@@ -143,26 +153,128 @@ client_socket.connect((HOST, PORT))
 # Confirms that the TCP connection is established
 print("Connected to RFMP server.")
 
-# Create & send the unsecured RFMP Start packet to the server
-start_packet = "SS,RFMP,v1.0,0"
+# Ask the user whether the RFMP connection should be secured
+print("\nConnection mode:")
+print("0. Unsecured")
+print("1. Secured")
+
+security_choice = input("Choose connection mode (0 or 1): ").strip()
+
+while security_choice not in ("0", "1"):
+    print("Invalid choice. Enter 0 for unsecured or 1 for secured.")
+    security_choice = input("Choose connection mode (0 or 1): ").strip()
+
+secure_mode = security_choice == "1"
+
+# Values used later when secure file transfer is enabled
+algorithm = None
+session_key = None
+caesar_shift = None
+
+# Create and send the RFMP Start packet
+start_packet = "SS,RFMP,v1.0," + security_choice
 send_packet(client_socket, start_packet)
 
+print("Sent Start packet:", start_packet)
 
-# Show the packet without printing newline character
-print("Sent Start packet:", start_packet.strip())
-
-# Create a text reader so that responses can be read one line at a time
+# Create a text reader so responses can be read one line at a time
 client_reader = client_socket.makefile("r", encoding="utf-8")
 
-# Read the server's Confirm-Connection packet
+# Receive the server's Confirm-Connection packet
 response = receieve_packet(client_reader)
 
-# Display server's response
 print("Received from server:", response)
 
-# Check whether the server has confirmed the connection 
-if response == "CC":
+connection_ready = False
+
+# Unsecured connection
+if not secure_mode and response == "CC":
     print("Unsecured RFMP connection established successfully.")
+    connection_ready = True
+
+# Secured connection
+elif secure_mode and response.startswith("CC,"):
+    # Extract the server's Base64-encoded RSA public key
+    encoded_server_key = response.split(",", 1)[1]
+
+    # Convert the server public key back into an RSA key object
+    server_key_bytes = base64.b64decode(encoded_server_key)
+    server_public_key = rsa.PublicKey.load_pkcs1(server_key_bytes)
+
+    print("Server RSA public key received successfully.")
+
+    # Ask which encryption algorithm should be used
+    print("\nEncryption algorithm:")
+    print("1. AES")
+    print("2. Caesar")
+
+    algorithm_choice = input(
+        "Choose encryption algorithm (1 or 2): "
+    ).strip()
+
+    while algorithm_choice not in ("1", "2"):
+        print("Invalid choice. Enter 1 for AES or 2 for Caesar.")
+        algorithm_choice = input(
+            "Choose encryption algorithm (1 or 2): "
+        ).strip()
+
+    algorithm = "AES" if algorithm_choice == "1" else "Caesar"
+
+    # Generate the client's RSA public/private key pair
+    client_public_key, client_private_key = create_rsa_keys()
+
+    # Generate the required 16-byte session key
+    session_key = create_session_key()
+
+    # Encrypt the session key using the server's RSA public key
+    encrypted_session_key = encrypt_rsa(
+        session_key,
+        server_public_key
+    )
+
+    # Convert encrypted session key to Base64
+    encoded_session_key = base64.b64encode(
+        encrypted_session_key
+    ).decode("ascii")
+
+    # Convert client public RSA key to PEM and then Base64
+    client_public_key_bytes = client_public_key.save_pkcs1()
+
+    encoded_client_key = base64.b64encode(
+        client_public_key_bytes
+    ).decode("ascii")
+
+    username = input("Enter username: ").strip()
+
+    while username == "":
+        print("Username cannot be empty.")
+        username = input("Enter username: ").strip()
+
+    # Create the RFMP Encryption Packet
+    encryption_packet = (
+        "EC,"
+        + algorithm
+        + ","
+        + encoded_session_key
+        + ","
+        + username
+        + ":"
+        + encoded_client_key
+    )
+
+    # Send EC packet. The server sends no acknowledgement after EC.
+    send_packet(client_socket, encryption_packet)
+
+    # Calculate Caesar shift now in case Caesar was selected
+    caesar_shift = session_key[0] % 25 + 1
+
+    print("Sent Encryption Packet using", algorithm)
+    print("Secured RFMP connection established successfully.")
+
+    connection_ready = True
+
+# Run the normal RFMP menu only after setup succeeds
+if connection_ready:
     
     # Keep showing the menu until the user chooses to end the session 
     while True:
@@ -199,7 +311,7 @@ if response == "CC":
             print("Invalid choice. Please select a valid option.")  
             
 else:
-    print("Failed to establish unsecured RFMP connection:", response)
+    print("Failed to establish RFMP connection:", response)
 
 # Close the reader
 client_reader.close()
