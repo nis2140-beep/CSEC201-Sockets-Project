@@ -50,6 +50,15 @@ def open_read(sock,reader):
                 received_data,
                 session_key
             ).decode("utf-8")
+        
+        elif secure_mode and algorithm == "Caesar":
+            encrypted_text = received_data.decode("latin-1")
+        
+            file_content = decrypt_caesar(
+                encrypted_text,
+                caesar_shift
+            )
+        
         else:
             # Unsecured mode contains normal file bytes
             file_content = received_data.decode("utf-8")
@@ -100,6 +109,15 @@ def open_write(sock, reader):
             file_bytes,
             session_key
         )
+    
+    elif secure_mode and algorithm == "Caesar":
+        encrypted_text = encrypt_caesar(
+            file_content,
+            caesar_shift
+        )
+        
+        data_to_send = encrypted_text.encode("latin-1")
+    
     else:
         # Unsecured mode sends the original file contents 
         data_to_send = file_bytes
