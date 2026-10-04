@@ -75,28 +75,47 @@ def decrypt_caesar(encrypted_file, shift):
 
 
 # Creating the listening socket
-host = "127.0.0.1"
-port = 8888
+host = "127.0.0.1" # localhost, server and client are running on the same computer
+port = 8888 # port used for the RFMP connection
 
+# AF_INET uses IPv4 + SOCK_STREAM creates a TCP socket
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# This connects the server socket to the chosen IP address + port
 server_socket.bind((host,port))
-server_socket.listen(5)
+
+# This puts the socket into listening mode so it can accept client connections
+server_socket.listen(5) # 5 is max number of queued connections, but the OS may allow more
 
 print("RFMP server is listening on port", port)
 
+# Client handler + setup packet section
+# Here, server handles new client connection and decides if the session will be unsecured (0) or secured (1) based on the setup packet sent by the client
+
 def client_handler(client_socket, address, client_reader):
+    # Handles communication with one connected client
     print("Client is connected:", address)
 
-    # Start-Packet (client to server) (Set-up phase)
+    # Reads client's start packet in setup phase
     message = client_reader.readline()
+    
+    # An empty string means client disconnected before sending packet
     if message == "":
         return
+    
+    # This removes newline (\n) + separates packet fields by commas
     message = message.strip()
     print("Client sent: ", message)
-    
     fields = message.split(",")
     
+    # The 0 means client requested an unsecured connection
+    # SS - Setup/start packet (first message sent by client to server + tells server this is start message)
+    # RFMP - protocol (tells it which protocol youre using)
+    # v1.0 - version
+    # If fields match the expected values, the server sends back a confirmation packet (CC) to the client
     if fields == ["SS", "RFMP", "v1.0", "0"]:
+        # .encode("utf-8") coverts Python string to bytes because socket sends bytes
+        # sendall() attempts to send entire byte sequence instead of you manually handling partial sends
         client_socket.sendall("CC\n".encode("utf-8"))
         print("Unsecured connection confirmed")
         
