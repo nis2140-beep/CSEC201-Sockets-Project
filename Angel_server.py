@@ -119,63 +119,108 @@ def client_handler(client_socket, address, client_reader):
         client_socket.sendall("CC\n".encode("utf-8"))
         print("Unsecured connection confirmed")
         
-        # Setting the client's starting folder
+        # Setting the client's starting folder to folder where server file is located
+        # __file__ = path/name of Python server file currently running
+        # os.path.abspath(__file__) = gets its absolute/full path
+        # os.path.dirname(...) = gets the folder where the server file is located
         current_dir = os.path.dirname(os.path.abspath(__file__))
         print("Starting folder:", current_dir)
         
         
-        # Keeping client connected until "End"
+        # Keeps reading packets from client until session ends
         for next_packet in client_reader:
+            # Removes \n from each received packet
             next_packet = next_packet.strip()
             
+            # Stops loop if client sends End
             if next_packet == "End":
                 print("Client has ended the session")
-                break
+                break # exit this for loop, doesn't exit the whole function, just the for loop
                 
+            # Checks if client sends an openRead command
             if next_packet.startswith("CM,openRead,"):
+                # Gets requested filename from command packet (CM)
                 file_name = next_packet.split(",",2)[2]
                 print("File requested:", file_name)
+                
                 try:
+                    # Opens requested file in binary read mode, reads its content, and closes the file automatically after leaving the with block
+                    # os.path.join() combines current server-side directory with requested filename
+                    # rb -> r = read, b = binary
+                    # This is done to ensure that the file is read in binary mode, which is important for handling non-text files correctly.
+                    
                     with open(os.path.join(current_dir, file_name), "rb") as file:
+                        # Reads the file contents into file_content
                         file_content = file.read()
-
+                        
+                    # This converts file data into Base64 for sending in the packet
+                    # b64encode -> converts raw file bytes into Base64 bytes
+                    # .decode("ascii") converts the Base64 bytes into a Python string so it can be combined with "DP,"
+                    # Base64 is ENCODING, not ENCRYPTION. It is used to safely transmit binary data over text-based protocols.
                     encoded_file_content = base64.b64encode(file_content).decode("ascii")
+                    
+                    # This sends the file data to the client
+                    # Sends packet over TCP connection, adds newline (\n) to indicate end of packet, and encodes the string into bytes for transmission
                     client_socket.sendall(("DP," + encoded_file_content + "\n").encode("utf-8"))
+                    
+                    # This sends a success confirmation packet to the client
                     client_socket.sendall(b"SC,Read complete\n")
 
+                # This sends an error if requested file does not exist
                 except FileNotFoundError:
-                    client_socket.sendall(b"EE,1,File not found\n")
+                    client_socket.sendall(b"EE,1,File not found\n") # 1 = couldnt find the file
+                # This sends an error if the file cannot be read for any other reason
                 except OSError:
-                    client_socket.sendall(b"EE,3,File could not be read\n")
-
+                    client_socket.sendall(b"EE,3,File could not be read\n") # 3 = couldnt read the file for some reason
+                    
+            # Checks if client sent an openWrite command
             elif next_packet.startswith("CM,openWrite,"):
+                
+                # Gets the filename that the client wants to write to
                 file_name = next_packet.split(",", 2)[2]
                 print("The file to write:", file_name)
                 
+                # Reads the next packet from the client, which should contain the file data
+                # First packet tells the server what to do + which file, second carries what to put inside file
                 data_packet = client_reader.readline()
+                
+                # Empty string = client disconnected
                 if data_packet == "":
-                    return
+                    return 
 
                 data_packet = data_packet.strip()
+                
+                # Ends the session if the client sends "End" instead of a data packet
                 if data_packet == "End":
                     print("Client has ended the session")
                     return
+                
+                # openWrite expects the next packet to be a data packet (DP)
                 if not data_packet.startswith("DP,"):
                     client_socket.sendall(b"EE,2,Expected data packet\n")
-                    continue
+                    continue # continues to the next iteration of the for loop, waiting for the next packet from the client
+                
                 try:
+                    # This removes DP, decodes Base64 data back into original file bytes
+                    # the [3:] removes the DP prefix from the packet, leaving only the Base64-encoded data
+                    # validate=True ensures that the Base64 data is valid and raises an error if it is not
                     file_content = base64.b64decode(data_packet[3:], validate=True)
                     
+                    # This opens requested file in binary write mode + writes data
                     with open(os.path.join(current_dir, file_name), "wb") as output_file:
-                        output_file.write(file_content)
+                        output_file.write(file_content) # saves the file content to the file, overwriting if it already exists
                         
+                # Handles invalid Base64 data
                 except (binascii.Error, ValueError):
                     client_socket.sendall(b"EE,2,Data packet is invalid\n")
+                # Handles errors that stop file from being written
                 except OSError:
                     client_socket.sendall(b"EE,3,The file could not be written\n")
+                # Only sends success if no exception has happened
                 else:
                     client_socket.sendall(b"SC,Write is complete\n")
                     
+            
             elif next_packet.startswith("CM,prompt,"):
                 prompt_command = next_packet.split(",", 2)[2]
                 
