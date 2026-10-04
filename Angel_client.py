@@ -155,7 +155,7 @@ def prompt_command(sock,reader):
         # Show the required and additional supported system commands
         print("\nAvailable prompt commands:")
         print("Required: mkdir, cd, rmdir/rd, del, ren")
-        print("Additional: dir, type, copy, move, echo")
+        print("Additional: dir, copy, move, echo, hostname -f")
             
         # Ask the user to enter the complete command 
         command = input("Enter the full system command to send to the server: ").strip()
