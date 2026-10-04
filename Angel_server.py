@@ -399,7 +399,9 @@ def client_handler(client_socket, address, client_reader):
         if encryption_packet == "" or encryption_packet.strip() == "End":
             return
 
+    
         try:
+            # This separates + validates the fields of encryption configuration packet (EC)
             encryption_fields = encryption_packet.strip().split(",", 3)
 
             if len(encryption_fields) != 4:
@@ -408,32 +410,37 @@ def client_handler(client_socket, address, client_reader):
             if encryption_fields[0] != "EC":
                 raise ValueError
 
+            # This checks that requested encryption algorithm is supported (AES or Caesar)
             algorithm = encryption_fields[1]
             if algorithm not in ("AES", "Caesar"):
                 raise ValueError
 
-            # Recovering the session key using the server's private key
+            # This decodes and decrypts the session key using server's private RSA key
             encrypted_session_key = base64.b64decode(
                 encryption_fields[2], validate=True
             )
             session_key = decrypt_rsa(encrypted_session_key, private_rsa)
 
+            # The session key must be 16 bytes
             if len(session_key) != 16:
                 raise ValueError
 
-            # Receiving the username and client's public key
+            # This gets the username + decodes the client's public key from last field
             username, encoded_client_key = encryption_fields[3].split(":", 1)
             client_public_key = base64.b64decode(
                 encoded_client_key, validate=True
             )
 
+
             if not username.strip() or not client_public_key:
                 raise ValueError
 
+        # This rejects the connection if encryption packet or session key is invalid
         except (binascii.Error, ValueError, rsa.DecryptionError):
             client_socket.sendall(b"EE,4,Invalid encryption packet\n")
             return
 
+        # This creates Caesar shift value from first byte of session key
         caesar_shift = session_key[0] % 25 + 1
 
         print("Secured connection confirmed:", algorithm)
@@ -443,7 +450,6 @@ def client_handler(client_socket, address, client_reader):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         print("Starting folder:", current_dir)
         
-        # Keeping client connected until "End"
         for next_packet in client_reader:
             next_packet = next_packet.strip()
 
@@ -459,7 +465,7 @@ def client_handler(client_socket, address, client_reader):
                     with open(os.path.join(current_dir, file_name), "rb") as file:
                         file_content = file.read()
 
-                    # Encrypting the file using the selected algorithm
+                    # This encrypts the file data using the encryption algorithm selected during setup
                     if algorithm == "AES":
                         encrypted_file = encrypt_aes(file_content, session_key)
                     else:
@@ -468,7 +474,7 @@ def client_handler(client_socket, address, client_reader):
                             file_text, caesar_shift
                         ).encode("latin-1")
 
-                    # Base64 encode the encrypted file for the RFMP packet
+                    # Base64 encodes the encrypted data before sending it in DP packet
                     encoded_file_content = base64.b64encode(encrypted_file).decode("ascii")
 
                     client_socket.sendall(("DP," + encoded_file_content + "\n").encode("utf-8"))
@@ -500,10 +506,10 @@ def client_handler(client_socket, address, client_reader):
                     continue
 
                 try:
-                    # Base64 decode the encrypted file
+                    # Base64 decodes the encrypted file
                     encrypted_file = base64.b64decode(data_packet[3:], validate=True)
 
-                    # Decrypting the file using the selected algorithm
+                    # This decrypts the received file data using the selected encryption algorithm
                     if algorithm == "AES":
                         file_content = decrypt_aes(encrypted_file, session_key)
                     else:
@@ -594,7 +600,8 @@ def client_handler(client_socket, address, client_reader):
                     try:
                         folder_path = os.path.join(current_dir, folder_name)
                         file_names = "\n".join(sorted(os.listdir(folder_path)))
-                        # Encrypting the directory output
+                        
+                        # This encrypts the directory listing using the selected encryption algorithm
                         directory_data = file_names.encode("utf-8")
 
                         if algorithm == "AES":
@@ -605,6 +612,7 @@ def client_handler(client_socket, address, client_reader):
                                 directory_text, caesar_shift
                             ).encode("latin-1")
 
+                        # Base64 encodes the encrypted directory listing before sending it
                         encoded_names = base64.b64encode(encrypted_names).decode("ascii")
 
                         client_socket.sendall(("DP," + encoded_names + "\n").encode("utf-8"))
@@ -668,7 +676,7 @@ def client_handler(client_socket, address, client_reader):
                     client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
                 client_socket.sendall(b"EE,2,Unknown packet\n")
-
+    # This rejects setup packets that don't match the supported RFMP setup formats
     else:
         client_socket.sendall("EE,4,Invalid setup packet\n".encode("utf-8"))
         print("Invalid setup packet:", message)
@@ -676,23 +684,29 @@ def client_handler(client_socket, address, client_reader):
 
 
 
-# Managing the connection and closing it after the session
+# This function handles one client connection + makes sure its resources are CLOSED
 def handle_connection(client_socket, address):
     try:
         with client_socket:
+            # This creates a text reader for receiving line-based RFMP packets
+            # makefile() turns socket into file-like text reader
             with client_socket.makefile("r", encoding="utf-8") as client_reader:
                 client_handler(client_socket, address, client_reader)
 
+    # This handles connection or text decoding errors
     except (OSError, UnicodeError) as error:
         print("Client connection error:", address, error)
 
     finally:
+        # Runs whether client finished normally/exception happened
         print("Client has been disconnected:", address)
+        
+# This will continuously wait for new clients to connect
 while True:
     client_socket, address = server_socket.accept()
-
+    # This creates a separate thread so each client can be handled independently
     threading.Thread(
-        target=handle_connection,
-        args=(client_socket, address),
-        daemon=True
-    ).start()
+        target=handle_connection, # The function the new thread should execute
+        args=(client_socket, address), # Passes this client's socket + address into handle_connection()
+        daemon=True # This allows the program to exit even if this thread is still running
+    ).start() # Starts the new thread
