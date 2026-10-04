@@ -85,7 +85,7 @@ server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind((host,port))
 
 # This puts the socket into listening mode so it can accept client connections
-server_socket.listen(5) # 5 is max number of queued connections, but the OS may allow more
+server_socket.listen(5) # 5 is requested max number of pending connections in the queue
 
 print("RFMP server is listening on port", port)
 
