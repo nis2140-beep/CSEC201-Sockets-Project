@@ -41,12 +41,23 @@ def open_read(sock,reader):
         # Remove the DP, packet header
         encoded_content = response[3:]
         
-        # Decode the Base64-encoded file content
-        file_content = base64.b64decode(encoded_content).decode("utf-8")
+        # Decode Base64 data from the Data Packet
+        received_data = base64.b64decode(encoded_content)
         
-        # Display the file contents
+        # Decrypt the file if secured AES mode is active
+        if secure_mode and algorithm == "AES":
+            file_content = decrypt_aes(
+                received_data,
+                session_key
+            ).decode("utf-8")
+        else:
+            # Unsecured mode contains normal file bytes
+            file_content = received_data.decode("utf-8")
+        
+        # Display the file contents to the user
         print("\nFile contents received from server:")
         print(file_content)
+            
         
         # Receive the final success packet
         status = receieve_packet(reader)
@@ -80,10 +91,25 @@ def open_write(sock, reader):
     # Show that the command was sent
     print("Sent:", write_packet)
     
-    # Convert the file text into bytes and encode it using Base64
-    encoded_content = base64.b64encode(file_content.encode("utf-8")).decode("ascii")
+    # Convert file contents into bytes
+    file_bytes = file_content.encode("utf-8")
     
-    # Create the RFMP Data Packet containing the encoded file contents
+    # Encrypt file contents when secured AES mode is active
+    if secure_mode and algorithm == "AES":
+        data_to_send = encrypt_aes(
+            file_bytes,
+            session_key
+        )
+    else:
+        # Unsecured mode sends the original file contents 
+        data_to_send = file_bytes
+    
+    # Base64 encodes the data for RFMP Data packet 
+    encoded_content = base64.b64encode(
+        data_to_send
+    ).decode("ascii")
+    
+    # Create RFMP Data Packet
     data_packet = "DP," + encoded_content
     
     # Send Data Packet to the server
