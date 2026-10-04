@@ -220,40 +220,49 @@ def client_handler(client_socket, address, client_reader):
                 else:
                     client_socket.sendall(b"SC,Write is complete\n")
                     
-            
+            # Checks if client sent a prompt command (CM,prompt)
             elif next_packet.startswith("CM,prompt,"):
+                
+                # This extracts the actual command from packet
                 prompt_command = next_packet.split(",", 2)[2]
                 
+                # This handles mkdir command + gets new folder name from the command
                 if prompt_command.startswith("mkdir "):
                     folder_name = prompt_command[6:].strip()
                     
                     try:
+                        # This creates the folder inside client's current directory 
                         os.mkdir(os.path.join(current_dir, folder_name))
                         client_socket.sendall(b"SC,Folder has been created\n")
                     except OSError:
                         client_socket.sendall(b"EE,3,Could not create folder\n")
                         
+                # This creates new path + checks that folder exists before changing current_dir
                 elif prompt_command.startswith("cd "):
                     folder_name = prompt_command[3:].strip()
                     new_dir = os.path.abspath(os.path.join(current_dir, folder_name))
                     
+                    # This checks if the new directory exists and is a directory, then changes current_dir to new_dir
                     if os.path.isdir(new_dir):
                         current_dir = new_dir
                         client_socket.sendall(b"SC,Current folder has been changed\n")
                     else:
                         client_socket.sendall(b"EE,1,Folder was not found\n")
                         
+                # This removes a folder from the current directory, checks if it exists first, and handles errors
                 elif prompt_command.startswith("rmdir "):
-                    folder_name = prompt_command[6:].strip()
+                    folder_name = prompt_command[6:].strip() # Gets the folder name from the command
                     
                     try:
+                        # This attempts to remove the folder from the current directory
                         os.rmdir(os.path.join(current_dir, folder_name))
                         client_socket.sendall(b"SC,Folder has been removed\n")
                     except FileNotFoundError:
                         client_socket.sendall(b"EE,1,Folder was not found\n")
                     except OSError:
                         client_socket.sendall(b"EE,3,Folder could not be removed\n")
-                        
+                
+                # This removes a file from the current directory, checks if it exists first, and handles errors
                 elif prompt_command.startswith("del "):
                     file_name = prompt_command[4:].strip()
                     
@@ -265,9 +274,12 @@ def client_handler(client_socket, address, client_reader):
                     except OSError:
                         client_socket.sendall(b"EE,3,File could not be deleted\n")
                         
+                # This renames a folder in the current directory, checks if it exists first, and handles errors
                 elif prompt_command.startswith("ren "):
+                    # This splits the command into parts to get the old and new folder names
                     names = prompt_command.split()
                     
+                    # This checks if the command has the correct number of arguments (3: ren, old_name, new_name)
                     if len(names) != 3:
                         client_socket.sendall(b"EE,2,Use ren old_name new_name\n")
                     else:
@@ -284,13 +296,19 @@ def client_handler(client_socket, address, client_reader):
                                 client_socket.sendall(b"SC,Folder has been renamed\n")
                             except OSError:
                                 client_socket.sendall(b"EE,3,Folder could not be renamed\n")
-                                
+                
+                # This lists the contents of a folder in the current directory, checks if it exists first, and handles errors
                 elif prompt_command.startswith("dir "):
                     folder_name = prompt_command[4:].strip()
 
                     try:
-                        folder_path = os.path.join(current_dir, folder_name)
+                        folder_path = os.path.join(current_dir, folder_name) # creates the full path to the folder to be listed
+                        # Gets + sorts files in requested folder, joins them into a single string with newlines between each file name
+                        # os.listdir() gets folder contents
+                        # sorted() sorts the list of file names alphabetically
                         file_names = "\n".join(sorted(os.listdir(folder_path)))
+                        
+                        # Base64 encodes the directory listing before sending it in DP packet
                         encoded_names = base64.b64encode(file_names.encode("utf-8")).decode("ascii")
 
                         client_socket.sendall(("DP," + encoded_names + "\n").encode("utf-8"))
@@ -299,15 +317,15 @@ def client_handler(client_socket, address, client_reader):
                         client_socket.sendall(b"EE,1,Folder was not found\n")
                     except OSError:
                         client_socket.sendall(b"EE,3,Folder could not be listed\n")
-                        
+                # This reads the source file + writes same data into new destination file
                 elif prompt_command.startswith("copy "):
-                    names = prompt_command.split()
+                    names = prompt_command.split() # splits the command into parts to get the source and destination file names
 
-                    if len(names) != 3:
+                    if len(names) != 3: 
                         client_socket.sendall(b"EE,2,Use copy source destination\n")
                     else:
-                        source = os.path.join(current_dir, names[1])
-                        destination = os.path.join(current_dir, names[2])
+                        source = os.path.join(current_dir, names[1]) # creates the full path to the source file to be copied
+                        destination = os.path.join(current_dir, names[2]) # creates the full path to the destination file where the copy will be saved
 
                         if not os.path.isfile(source):
                             client_socket.sendall(b"EE,1,Source file was not found\n")
@@ -315,14 +333,17 @@ def client_handler(client_socket, address, client_reader):
                             client_socket.sendall(b"EE,3,Destination already exists\n")
                         else:
                             try:
+                                # This opens source file in binary read mode + reads its content
                                 with open(source, "rb") as original:
                                     file_data = original.read()
+                                # This opens destination file in binary write mode + writes the copied data
                                 with open(destination, "xb") as copied_file:
                                     copied_file.write(file_data)
                                 client_socket.sendall(b"SC,File has been copied\n")
                             except OSError:
                                 client_socket.sendall(b"EE,3,File could not be copied\n")
-                                
+                
+                # This moves source file to new destination
                 elif prompt_command.startswith("move "):
                     names = prompt_command.split()
 
@@ -338,15 +359,17 @@ def client_handler(client_socket, address, client_reader):
                             client_socket.sendall(b"EE,3,Destination already exists\n")
                         else:
                             try:
-                                os.rename(source, destination)
+                                os.rename(source, destination) # renames the source file to the destination file, effectively moving it
                                 client_socket.sendall(b"SC,File has been moved\n")
                             except OSError:
                                 client_socket.sendall(b"EE,3,File could not be moved\n")
-                                
+                
+                # This sends the provided message back in success packet
                 elif prompt_command.startswith("echo "):
-                    message_text = prompt_command[5:]
+                    message_text = prompt_command[5:] # extracts the text to be echoed back to the client
                     client_socket.sendall(("SC," + message_text + "\n").encode("utf-8"))
-                    
+                
+                # This gets the computers fully qualified hostname
                 elif prompt_command == "hostname -f":
                     computer_name = socket.getfqdn()
                     client_socket.sendall(("SC," + computer_name + "\n").encode("utf-8"))
@@ -354,16 +377,22 @@ def client_handler(client_socket, address, client_reader):
                     client_socket.sendall(b"EE,2,Unknown prompt command\n")
             else:
                 client_socket.sendall("EE,2,Unknown packet\n".encode("utf-8"))
-                
-    elif fields == ["SS", "RFMP", "v1.0", "1"]: #if the client chooses a secure connection
     
-        # generate the rsa key pair
-        public_rsa, private_rsa = create_rsa_keys() # unpacking the tuple and separating the two keys as two different variables
-        server_pbkey = public_rsa.save_pkcs1() #---> turns the public_rsa OBJECT as bytes so it can be sent over the socket
-        encoded_sv_pbkey = base64.b64encode(server_pbkey).decode("ascii") #---> turns ^^ into safe bytes, i.e. no \n or , and then turns the whole thing into a string for the packet
+    # 1 means client requested secured connection
+    elif fields == ["SS", "RFMP", "v1.0", "1"]:
+    
+        # Creates server's RSA public + private keys
+        public_rsa, private_rsa = create_rsa_keys()
         
-        # send the public rsa key to the client, .encode() bc of .sendall()
+        # Converts server's public key into bytes so it can be sent to client
+        server_pbkey = public_rsa.save_pkcs1()
+        
+        # Base64 encodes public key so it can be included in CC packet
+        encoded_sv_pbkey = base64.b64encode(server_pbkey).decode("ascii")
+        
+        # Confirms connection + sends server's public RSA key to client
         client_socket.sendall(("CC," + encoded_sv_pbkey + "\n").encode("utf-8"))
+        
         # Receiving the client's encryption packet
         encryption_packet = client_reader.readline()
 
